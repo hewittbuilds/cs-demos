@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Eight Balls — Balance Puzzle</title>
+<style>
+  :root{
+    --blue:#1478e6;
+    --blue-dark:#0f4fb8;
+    --ink:#101820;
+    --muted:#6b7280;
+    --line:#d8dde5;
+    --panel:#f5f7fa;
+    --good:#177245;
+    --bad:#b42318;
+    --gold:#d97706;
+    --scale:#151515;
+  }
+
+  *{box-sizing:border-box}
+  html, body{
+    width:100%;
+    height:100%;
+    margin:0;
+    overflow:hidden;
+  }
+  body{
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background:#fff;
+    color:var(--ink);
+  }
+
+  .app{
+    height:100vh;
+    width:100vw;
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    padding:1.4vh 2vw 1.4vh;
+    gap:1vh;
+  }
+
+  header{
+    text-align:center;
+    line-height:1;
+  }
+  h1{
+    margin:0;
+    font-size:clamp(30px,4.8vw,68px);
+    letter-spacing:-0.03em;
+  }
+  .subtitle{
+    margin-top:.3vh;
+    font-size:clamp(18px,2.3vw,34px);
+    font-weight:800;
+  }
+  .prompt{
+    margin-top:.55vh;
+    color:var(--muted);
+    font-size:clamp(13px,1.2vw,18px);
+    font-weight:600;
+  }
+
+  .main{
+    min-height:0;
+    display:grid;
+    grid-template-rows:1fr auto auto;
+    gap:1vh;
+  }
+
+  .scale-zone{
+    position:relative;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .scale{
+    width:min(94vw,1250px);
+    height:100%;
+    min-height:250px;
+    max-height:48vh;
+    position:relative;
+  }
+
+  .fulcrum{
+    position:absolute;
+    left:50%;
+    bottom:9%;
+    transform:translateX(-50%);
+    width:15%;
+    height:45%;
+    min-width:130px;
+    background:var(--scale);
+    clip-path:polygon(38% 0,62% 0,82% 85%,92% 85%,92% 100%,8% 100%,8% 85%,18% 85%);
+    z-index:2;
+  }
+  .pivot{
+    position:absolute;
+    left:50%;
+    top:6%;
+    transform:translateX(-50%);
+    width:4.6%;
+    aspect-ratio:1/1;
+    min-width:46px;
+    max-width:64px;
+    border-radius:50%;
+    background:#fff;
+    border:10px solid var(--scale);
+    z-index:6;
+  }
+
+  .beam{
+    position:absolute;
+    left:8%;
+    right:8%;
+    top:18%;
+    height:18px;
+    border-radius:10px;
+    background:var(--scale);
+    transform-origin:center;
+    transition:transform .35s ease;
+    z-index:4;
+  }
+  .beam.left-heavy{transform:rotate(-5deg)}
+  .beam.right-heavy{transform:rotate(5deg)}
+
+  .tray{
+    position:absolute;
+    top:14%;
+    width:37%;
+    height:26%;
+    background:#fff;
+    border:14px solid var(--scale);
+    border-radius:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:1.2vw;
+    padding:1.5vh 1vw;
+    z-index:5;
+    cursor:pointer;
+    transition:transform .35s ease, background .15s ease;
+  }
+  .tray.left{left:0}
+  .tray.right{right:0}
+  .tray:hover{background:#fafafa}
+  .tray.left-heavy{transform:translateY(4vh)}
+  .tray.right-heavy{transform:translateY(4vh)}
+
+  .tray-label{
+    position:absolute;
+    top:42%;
+    width:37%;
+    text-align:center;
+    font-size:clamp(16px,1.5vw,24px);
+    font-weight:900;
+    color:#222;
+  }
+  .tray-label.left{left:0}
+  .tray-label.right{right:0}
+
+  .bench{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:clamp(8px,1.2vw,18px);
+    flex-wrap:nowrap;
+    min-height:9vh;
+    padding:.5vh 1vw;
+    cursor:pointer;
+  }
+
+  .ball{
+    flex:0 0 auto;
+    width:clamp(48px,6.5vw,82px);
+    aspect-ratio:1/1;
+    border-radius:50%;
+    background:var(--blue);
+    border:3px solid var(--blue-dark);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:clamp(20px,2.6vw,34px);
+    font-weight:900;
+    box-shadow:inset 0 5px 0 rgba(255,255,255,.22), 0 4px 8px rgba(0,0,0,.12);
+    cursor:pointer;
+    user-select:none;
+    transition:transform .12s ease, outline .12s ease;
+  }
+  .tray .ball{
+    width:clamp(42px,5vw,68px);
+    font-size:clamp(17px,2.1vw,28px);
+  }
+  .ball:hover{transform:translateY(-2px)}
+  .ball.selected{
+    outline:5px solid #f59e0b;
+    outline-offset:3px;
+    transform:scale(1.04);
+  }
+  .ball.revealed-heavy{
+    box-shadow:0 0 0 6px #f59e0b, inset 0 5px 0 rgba(255,255,255,.22), 0 4px 8px rgba(0,0,0,.12);
+  }
+
+  .status-controls{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:1vw;
+    align-items:center;
+  }
+  .counter{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:.7vh 1vw;
+    text-align:center;
+    min-width:120px;
+  }
+  .counter .label{
+    font-size:clamp(12px,1vw,15px);
+    font-weight:700;
+  }
+  .counter .num{
+    font-size:clamp(28px,3vw,44px);
+    font-weight:900;
+    line-height:1;
+  }
+
+  .message{
+    min-height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:.7vh 1vw;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:#fff;
+    font-size:clamp(14px,1.2vw,18px);
+    font-weight:800;
+    text-align:center;
+  }
+  .message.good{color:var(--good)}
+  .message.bad{color:var(--bad)}
+  .message.gold{color:var(--gold)}
+
+  .controls{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:.7vw;
+    flex-wrap:nowrap;
+  }
+  button{
+    border:none;
+    border-radius:12px;
+    padding:1vh 1.1vw;
+    font-size:clamp(13px,1vw,16px);
+    font-weight:900;
+    cursor:pointer;
+    white-space:nowrap;
+    background:#1f2937;
+    color:#fff;
+  }
+  button.blue{background:var(--blue)}
+  button.gold{background:var(--gold)}
+  button.secondary{background:#e8ebef;color:#1f2937}
+  button:disabled{opacity:.4;cursor:not-allowed}
+
+  .overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(17,24,39,.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+  }
+  .overlay.open{display:flex}
+  .card{
+    width:min(700px,90vw);
+    max-height:78vh;
+    overflow:auto;
+    background:#fff;
+    border-radius:20px;
+    padding:22px;
+    box-shadow:0 18px 60px rgba(0,0,0,.22);
+  }
+  .card h2{margin:0 0 10px}
+  .guess-grid{
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    gap:8px;
+    margin-top:14px;
+  }
+  .guess-grid button{
+    background:var(--blue);
+    padding:14px 0;
+  }
+  .solution ol{
+    margin:10px 0 0 20px;
+    padding:0;
+    line-height:1.45;
+  }
+  .close-row{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:14px;
+  }
+
+  @media (max-width:900px){
+    .status-controls{grid-template-columns:1fr}
+    .controls{justify-content:center;flex-wrap:wrap}
+    .counter{justify-self:center}
+  }
+
+  @media (max-height:720px){
+    .app{padding:.8vh 1.5vw;gap:.5vh}
+    .prompt{display:none}
+    .scale{max-height:43vh}
+    .bench{min-height:8vh}
+    .message{min-height:34px}
+    button{padding:.8vh .9vw}
+  }
+
+  @media (max-height:620px){
+    h1{font-size:clamp(26px,4vw,48px)}
+    .subtitle{font-size:clamp(16px,2vw,26px)}
+    .scale{max-height:40vh}
+    .tray{height:24%;border-width:10px}
+    .fulcrum{height:42%}
+    .bench{min-height:7vh}
+    .ball{width:clamp(42px,5.5vw,68px)}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Eight Balls</h1>
+    <div class="subtitle">One is Different</div>
+    <div class="prompt">One ball is heavier. Can you guarantee the answer in only two weighings?</div>
+  </header>
+
+  <section class="main">
+    <div class="scale-zone">
+      <div class="scale">
+        <div id="beam" class="beam"></div>
+        <div class="pivot"></div>
+        <div class="fulcrum"></div>
+
+        <div id="leftTray" class="tray left" aria-label="Left pan"></div>
+        <div id="rightTray" class="tray right" aria-label="Right pan"></div>
+        <div class="tray-label left">LEFT</div>
+        <div class="tray-label right">RIGHT</div>
+      </div>
+    </div>
+
+    <div id="bench" class="bench" aria-label="Bench"></div>
+
+    <div class="status-controls">
+      <div class="counter">
+        <div class="label">WEIGHINGS</div>
+        <div id="count" class="num">0</div>
+      </div>
+
+      <div id="message" class="message">Select a ball, then click LEFT or RIGHT.</div>
+
+      <div class="controls">
+        <button id="weighBtn" class="blue">WEIGH</button>
+        <button id="guessBtn" class="gold">GUESS</button>
+        <button id="resetBtn" class="secondary">RESET POSITIONS</button>
+        <button id="newBtn">NEW PUZZLE</button>
+        <button id="solutionBtn" class="secondary" disabled>SOLUTION</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="guessOverlay" class="overlay">
+  <div class="card">
+    <h2>Which ball is heavier?</h2>
+    <div id="guessGrid" class="guess-grid"></div>
+    <div class="close-row"><button id="closeGuess" class="secondary">Cancel</button></div>
+  </div>
+</div>
+
+<div id="solutionOverlay" class="overlay">
+  <div class="card solution">
+    <h2>Guaranteed two-weighing strategy</h2>
+    <ol>
+      <li>Weigh <strong>3 balls against 3 balls</strong>.</li>
+      <li>If they balance, the heavy ball is one of the <strong>2 left out</strong>. Compare those two.</li>
+      <li>If one side is heavier, the heavy ball is among those <strong>3 balls</strong>. Compare any two of them. If one is heavier, you found it; if they balance, the third is the heavy ball.</li>
+    </ol>
+    <div class="close-row"><button id="closeSolution">Close</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const balls = Array.from({length:8}, (_,i)=>({id:i+1, location:'bench'}));
+  let heavy = 1 + Math.floor(Math.random()*8);
+  let selected = null;
+  let weighings = 0;
+  let revealed = false;
+
+  const leftTray = document.getElementById('leftTray');
+  const rightTray = document.getElementById('rightTray');
+  const bench = document.getElementById('bench');
+  const beam = document.getElementById('beam');
+  const count = document.getElementById('count');
+  const message = document.getElementById('message');
+  const solutionBtn = document.getElementById('solutionBtn');
+  const guessOverlay = document.getElementById('guessOverlay');
+  const solutionOverlay = document.getElementById('solutionOverlay');
+  const guessGrid = document.getElementById('guessGrid');
+
+  function setMessage(text, cls=''){
+    message.textContent = text;
+    message.className = 'message' + (cls ? ' '+cls : '');
+  }
+
+  function clearTilt(){
+    beam.className='beam';
+    leftTray.className='tray left';
+    rightTray.className='tray right';
+  }
+
+  function render(){
+    leftTray.innerHTML='';
+    rightTray.innerHTML='';
+    bench.innerHTML='';
+
+    balls.forEach(b=>{
+      const el=document.createElement('div');
+      el.className='ball';
+      if(selected===b.id) el.classList.add('selected');
+      if(revealed && b.id===heavy) el.classList.add('revealed-heavy');
+      el.textContent=b.id;
+
+      el.onclick=(e)=>{
+        e.stopPropagation();
+        selected = selected===b.id ? null : b.id;
+        setMessage(selected ? `Ball ${selected} selected — click LEFT, RIGHT, or the bench.` : 'Select a ball, then click LEFT or RIGHT.');
+        render();
+      };
+
+      (b.location==='left' ? leftTray : b.location==='right' ? rightTray : bench).appendChild(el);
+    });
+
+    count.textContent=weighings;
+  }
+
+  function moveSelected(location){
+    if(selected==null){
+      setMessage('Select a ball first.','gold');
+      return;
+    }
+    balls.find(b=>b.id===selected).location=location;
+    setMessage(`Ball ${selected} moved to ${location==='bench' ? 'the bench' : location.toUpperCase()+ ' pan'}.`);
+    selected=null;
+    clearTilt();
+    render();
+  }
+
+  leftTray.onclick=()=>moveSelected('left');
+  rightTray.onclick=()=>moveSelected('right');
+  bench.onclick=()=>moveSelected('bench');
+
+  document.getElementById('weighBtn').onclick=()=>{
+    const left=balls.filter(b=>b.location==='left');
+    const right=balls.filter(b=>b.location==='right');
+
+    if(left.length===0 && right.length===0){
+      setMessage('Put balls on the scale first.','gold');
+      return;
+    }
+    if(left.length!==right.length){
+      setMessage('Put the same number of balls on each side.','gold');
+      return;
+    }
+
+    weighings++;
+    clearTilt();
+
+    const leftWeight = left.length + (left.some(b=>b.id===heavy) ? 1 : 0);
+    const rightWeight = right.length + (right.some(b=>b.id===heavy) ? 1 : 0);
+
+    if(leftWeight>rightWeight){
+      beam.classList.add('left-heavy');
+      leftTray.classList.add('left-heavy');
+      setMessage('LEFT SIDE IS HEAVIER','bad');
+    } else if(rightWeight>leftWeight){
+      beam.classList.add('right-heavy');
+      rightTray.classList.add('right-heavy');
+      setMessage('RIGHT SIDE IS HEAVIER','bad');
+    } else {
+      setMessage('THE SCALE BALANCES','good');
+    }
+    render();
+  };
+
+  document.getElementById('resetBtn').onclick=()=>{
+    balls.forEach(b=>b.location='bench');
+    selected=null;
+    clearTilt();
+    setMessage('Positions reset. The hidden heavy ball has not changed.');
+    render();
+  };
+
+  document.getElementById('newBtn').onclick=()=>{
+    heavy=1+Math.floor(Math.random()*8);
+    balls.forEach(b=>b.location='bench');
+    selected=null;
+    weighings=0;
+    revealed=false;
+    solutionBtn.disabled=true;
+    clearTilt();
+    setMessage('New puzzle ready.');
+    render();
+  };
+
+  document.getElementById('guessBtn').onclick=()=>guessOverlay.classList.add('open');
+  document.getElementById('closeGuess').onclick=()=>guessOverlay.classList.remove('open');
+
+  for(let i=1;i<=8;i++){
+    const btn=document.createElement('button');
+    btn.textContent=i;
+    btn.onclick=()=>{
+      revealed=true;
+      solutionBtn.disabled=false;
+      guessOverlay.classList.remove('open');
+      if(i===heavy){
+        setMessage(`Correct — Ball ${heavy} is heavier.${weighings<=2 ? ' You solved it in two weighings or fewer!' : ''}`,'good');
+      } else {
+        setMessage(`Not quite — Ball ${heavy} was the heavy ball.`,'bad');
+      }
+      render();
+    };
+    guessGrid.appendChild(btn);
+  }
+
+  solutionBtn.onclick=()=>solutionOverlay.classList.add('open');
+  document.getElementById('closeSolution').onclick=()=>solutionOverlay.classList.remove('open');
+
+  [guessOverlay, solutionOverlay].forEach(overlay=>{
+    overlay.addEventListener('click', e=>{
+      if(e.target===overlay) overlay.classList.remove('open');
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
